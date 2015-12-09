@@ -19,17 +19,17 @@ if 'PBS_NODEFILE' in os.environ:
                 JASPRC['multiprocessing.cores_per_process'] is 'None')):
             # vanilla MPI run. multiprocessing does not work on more
             # than one node, and you must specify in JASPRC to use it
-            
+
             parcmd = 'mpirun -np %i %s' % (NPROCS, parallel_vasp)
-            
+
             exitcode = os.system(parcmd)
         else:
             # we need to run an MPI job on cores_per_process
-            if JASPRC['multiprocessing.cores_per_process'] == 1:                
+            if JASPRC['multiprocessing.cores_per_process'] == 1:
                 exitcode = os.system(serial_vasp)
             elif JASPRC['multiprocessing.cores_per_process'] > 1:
                 NPROCS = JASPRC['multiprocessing.cores_per_process']
-                
+
                 parcmd = 'mpirun -np %i %s' % (NPROCS, parallel_vasp)
                 exitcode = os.system(parcmd)
 
@@ -39,29 +39,34 @@ elif 'PE_HOSTFILE' in os.environ:
     NPROCS = int(os.environ['NSLOTS'])
     NODES = int(os.environ['NHOSTS'])
 
-   
+
     if NPROCS == 1:
-        # no question. running in serial.        
+        # no question. running in serial.
         exitcode = os.system(serial_vasp)
     else:
         if (NODES > 1
             or (NODES == 1 and
                 JASPRC['multiprocessing.cores_per_process'] == 'None')):
             # vanilla MPI run. multiprocessing does not work on more
-            # than one node, and you must specify in JASPRC to use it        
-            parcmd = 'mpirun -np %i %s' % (NPROCS, parallel_vasp)
+            # than one node, and you must specify in JASPRC to use it
+            #parcmd = 'mpirun --mca btl ^openib --mca mtl ^psm --n %i %s' % (NPROCS, parallel_vasp)
+            parcmd = 'mpirun --mca btl ^openib --mca mtl ^psm --n {0} {1}'.format(JASPRC['queue.pused'],parallel_vasp)
+            #parcmd = 'gerun -np %i %s' % (NPROCS, parallel_vasp)
             exitcode = os.system(parcmd)
-            
+
         else:
             # we need to run an MPI job on cores_per_process
-            if JASPRC['multiprocessing.cores_per_process'] == 1:                
+            if JASPRC['multiprocessing.cores_per_process'] == 1:
                 exitcode = os.system(serial_vasp)
             elif JASPRC['multiprocessing.cores_per_process'] > 1:
                 NPROCS = JASPRC['multiprocessing.cores_per_process']
 
-                parcmd = 'mpirun -np %i %s' % (NPROCS, parallel_vasp)
+                #parcmd = 'gerun -np %i %s' % (NPROCS, parallel_vasp)
+                #parcmd = 'mpirun --mca btl ^openib --mca mtl ^psm --n %i %s' % (NPROCS, parallel_vasp)
+                #parcmd = 'mpirun --mca btl ^openib --mca mtl ^psm --n 8 {0}'.format(parallel_vasp)
+                parcmd = 'mpirun --mca btl ^openib --mca mtl ^psm --n {0} {1}'.format(JASPRC['queue.pused'],parallel_vasp)
                 exitcode = os.system(parcmd)
-                
+
 else:
     # probably running at cmd line, in serial.
     exitcode = os.system(serial_vasp)

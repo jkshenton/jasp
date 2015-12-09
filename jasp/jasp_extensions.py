@@ -316,7 +316,7 @@ def job_in_queue(self):
 
                 if status == 0:
                     fields = output.split()
-                    job_status = fields[4]                    
+                    job_status = fields[4]
                     return True
             else:
                 return False
@@ -531,6 +531,10 @@ def run(self):
 
     # if you get here, a job is getting submitted
     script = '#!/bin/{0}\n'.format(JASPRC['queue.shell'])
+    #script += 'export PATH="/home/zcqsg79/anaconda/bin:$PATH"\n'
+    script += 'source /etc/profile.d/modules.sh \n'
+    #script += 'export PYTHONPATH="/home/zcqsg79/anaconda/bin/python:$PYTHONPATH"\n'
+    script += 'export PATH=$SGE_O_PATH:$PATH \n'
     script += 'module load {0}\n'.format(JASPRC['module'])
     script +='''cd {self.cwd}  # this is the current working directory
 cd {self.vaspdir}  # this is the vasp directory
@@ -554,35 +558,35 @@ runjasp.py   # this is the vasp command
 
     elif JASPRC['scheduler'] == 'SGE':
         jobname = (self.vaspdir).replace('/','|') # SGE does not allow '/' in job names
-        log.debug('{0} will be the jobname.'.format(jobname))        
+        log.debug('{0} will be the jobname.'.format(jobname))
         f = open('qscript','w')
         f.write(script)
         f.close()
-        log.debug('-pe {0} {1}'.format(JASPRC['queue.pe'],
+        log.debug('-pe ompi {0} {1}'.format(JASPRC['queue.pe'],
                                        JASPRC['queue.nprocs']))
-        log.debug('-q {0}'.format(JASPRC['queue.q']))
+        #log.debug('-q {0}'.format(JASPRC['queue.q']))
 
         cmdlist = ['{0}'.format(JASPRC['queue.command'])]
         cmdlist += [option for option in JASPRC['queue.options'].split()]
         cmdlist += ['-N', '{0}'.format(jobname),
-                    '-q {0}'.format(JASPRC['queue.q']),
-                    '-pe {0} {1}'.format(JASPRC['queue.pe'], JASPRC['queue.nprocs'])
-                    #'-l mem_free={0}'.format(JASPRC['queue.mem'])
+                    '-pe', 'ompi', '{0}'.format(JASPRC['queue.pe']),
+                    '-q', '{0}'.format(JASPRC['queue.q']),
+                    '-l','vf={0}'.format(JASPRC['queue.mem'])
                      ]
         cmdlist += ['qscript']
-       
+
     log.debug('{0}'.format(' '.join(cmdlist)))
     p = Popen(cmdlist,
               stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
     log.debug(script)
-        
+
     out, err = p.communicate(script)
 
     if out == '' or err != '':
         raise Exception('something went wrong in qsub:\n\n{0}'.format(err))
 
-    if JASPRC['scheduler'] == 'SGE':    
+    if JASPRC['scheduler'] == 'SGE':
         jobid = out.split()[2]
     else:
         jobid =  out
@@ -848,7 +852,7 @@ def vasp_changed_bands(calc):
                 calc.set(nbands=nbands_new)
                 calc.write_incar(calc.get_atoms())
 
-                log.debug('calc.kwargs: {0}'.format(calc.kwargs))
+                log.debug('calc.kwargs: {0}'.format(calc.kwargs.get()))
                 if calc.kwargs.get('nbands', None) != nbands_new:
                     raise VaspWarning('The number of bands was changed by VASP. '
                                       'This happens sometimes when you run in '
@@ -1375,12 +1379,12 @@ def chgsum(self):
         raise Exception('Cannot perform chgsum:\n\n{0}'.format(err))
 
 Vasp.chgsum = chgsum
-    
+
 def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
 
     '''
     Performs bader analysis for a calculation
-    
+
     Follows defaults unless full shell command is specified
 
     Does not overwrite existing files if overwrite=False
@@ -1392,7 +1396,7 @@ def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
 
     if 'ACF.dat' in os.listdir('./') and not overwrite:
         return
-    
+
     if cmd is None:
         if ref:
             self.chgsum()
@@ -1403,7 +1407,7 @@ def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
         cmdlist = cmd.split()
     elif type(cmd) is list:
         cmdlist = cmd
-        
+
     p = Popen(cmdlist, stdin=PIPE, stdout=PIPE, stderr=PIPE)
     out, err = p.communicate()
     if out == '' or err != '':
@@ -1412,5 +1416,3 @@ def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
         print('Bader completed for {0}'.format(self.vaspdir))
 
 Vasp.bader = bader
-
-
